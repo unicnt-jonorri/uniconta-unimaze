@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="is">
+<head>
+    <meta charset="UTF-8">
+    <title>Unimaze-Uniconta</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+</head>
+<body>
+
+<h1>Crypto strengur fyrir Uniconta til að tengjast Unimaze</h1>
+
+<input id="username" type="text" placeholder="Notandanafn frá Unimaze"><br>
+<input id="password" type="password" placeholder="Lykilorð frá Unimaze"><br><br>
+
+<button onclick="utbua()">Búa til</button><br><br>
+
+<p id="skilabod" style="display:none;">
+    Afritaðu þennan streng og peistaðu í fyrirtækjaupplýsingarnar í contanu:
+</p>
+
+<p id="crypto"></p>
+
+<button id="copyButton" style="display:none;" onclick="copyTextToClipboard()">
+    Copy
+</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+<script>
+const initVector = "steinbe9uzpgzl87";
+const keysize = 256;
+
+function encryptString(plainText) {
+    const passPhrase = Math.floor(Math.random() * 9000000 + 1000000).toString();
+
+    const key = passwordDeriveBytesDotNet(passPhrase, null, 100, keysize / 8);
+    const iv = CryptoJS.enc.Utf8.parse(initVector);
+
+    const encrypted = CryptoJS.AES.encrypt(
+        CryptoJS.enc.Utf8.parse(plainText),
+        key,
+        {
+            iv: iv,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7
+        }
+    );
+
+    const cipherTextBase64 = CryptoJS.enc.Base64.stringify(encrypted.ciphertext);
+    const combined = passPhrase + ";" + cipherTextBase64;
+
+    return utf8ToBase64(combined);
+}
+
+function passwordDeriveBytesDotNet(password, salt, iterations, byteCount) {
+    let baseValue = wordArrayConcat(
+        CryptoJS.enc.Utf8.parse(password),
+        salt ? CryptoJS.lib.WordArray.create(salt) : CryptoJS.lib.WordArray.create()
+    );
+
+    baseValue = CryptoJS.SHA1(baseValue);
+
+    for (let i = 1; i < iterations - 1; i++) {
+        baseValue = CryptoJS.SHA1(baseValue);
+    }
+
+    let result = CryptoJS.lib.WordArray.create();
+    let prefix = 0;
+
+    while (result.sigBytes < byteCount) {
+        let hashInput;
+
+        if (prefix === 0) {
+            hashInput = baseValue;
+        } else {
+            hashInput = wordArrayConcat(
+                CryptoJS.enc.Latin1.parse(prefix.toString()),
+                baseValue
+            );
+        }
+
+        const hash = CryptoJS.SHA1(hashInput);
+        result = wordArrayConcat(result, hash);
+        prefix++;
+    }
+
+    result.sigBytes = byteCount;
+    result.clamp();
+
+    return result;
+}
+
+function wordArrayConcat(a, b) {
+    return a.clone().concat(b);
+}
+
+function utf8ToBase64(str) {
+    const utf8 = CryptoJS.enc.Utf8.parse(str);
+    return CryptoJS.enc.Base64.stringify(utf8);
+}
+let cryptoStrengur = "";
+
+function utbua() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    cryptoStrengur = encryptString(username + ":" + password);
+
+    document.getElementById("skilabod").style.display = "block";
+    document.getElementById("crypto").innerText = cryptoStrengur;
+    document.getElementById("copyButton").style.display = "inline-block";
+}
+
+async function copyTextToClipboard() {
+    await navigator.clipboard.writeText(cryptoStrengur);
+}
+</script>
+</body>
+</html>
